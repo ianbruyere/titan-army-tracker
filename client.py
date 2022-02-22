@@ -91,10 +91,10 @@ class ClientSetupScreen():
             self.client.send(self.your_name) # send name to server after connecting
 
             # disable widgets
-            self.btn_connect.config(state=DISABLED)
-            self.ent_name.config(state=DISABLED)
-            self.bl_name.config(state=DISABLED)
-            enable_disable_buttons("disable")
+            self.btn_connect.config(state=tk.DISABLED)
+            self.ent_name.config(state=tk.DISABLED)
+            self.bl_name.config(state=tk.DISABLED)
+            # self.enable_disable_buttons("disable")
 
             # start a thread to keep recieving message from server
             # do not block main thread
