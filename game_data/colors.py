@@ -1,5 +1,6 @@
 from enum import auto
 import os
+
 class Teams(Enum):
     RED = 1
     YELLOW = 2

@@ -39,7 +39,7 @@ class Server():
         self.tkDisplay = tk.Text(self.clientFrame, height=15, width=40)
         self.tkDisplay.pack(side=tk.LEFT, fill=tk.Y, padx=(5, 0))
         self.scrollBar.config(command=self.tkDisplay.yview)
-        self.tkDisplay.config(yscrollcommand=self.scrollBar.set, background="#F4F6F7", highlightbackground="grey", state="disabled")
+        self.tkDisplay.config(yscrollcommand=self.scrollBar.set, background="#F4F6F7", highlightbackground="grey")
         self.clientFrame.pack(side=tk.BOTTOM, pady=(5, 10))
 
         self.window.mainloop()

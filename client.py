@@ -4,7 +4,6 @@ import os
 import tkinter as tk
 import tkinter.ttk as ttk
 from time import sleep
-from turtle import width
 
 
 class ClientSetupScreen():
@@ -68,9 +67,7 @@ class ClientSetupScreen():
         path = f"./game_data/{self.optionTeam.get()}/"
         file_names = os.listdir(path)
         file_paths = [path + file_name for file_name in file_names]
-        print(file_paths)
         self.images = dict(zip(file_names, [tk.PhotoImage(file=file_path) for file_path in file_paths]))
-        print(self.images)
         # setting up first army select
         self.dd_army_one = tk.OptionMenu(self.army_one_frame, self.army_select_one, *file_names)
         self.dd_army_one.pack(side=tk.LEFT)
@@ -93,7 +90,7 @@ class ClientSetupScreen():
             # disable widgets
             self.btn_connect.config(state=tk.DISABLED)
             self.ent_name.config(state=tk.DISABLED)
-            self.bl_name.config(state=tk.DISABLED)
+            self.lbl_name.config(state=tk.DISABLED)
             # self.enable_disable_buttons("disable")
 
             # start a thread to keep recieving message from server
