@@ -6,7 +6,7 @@ import tkinter.ttk as ttk
 from time import sleep
 
 
-class ClientSetupScreen():
+class ClientSetupScreen:
 
     OPTIONS = [
     "Black",

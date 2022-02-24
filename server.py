@@ -3,7 +3,7 @@ import socket
 import threading
 from time import sleep
 
-class Server():
+class Server:
     server = None
     HOST_ADDR = "0.0.0.0"
     HOST_PORT = 8080
