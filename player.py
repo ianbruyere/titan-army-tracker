@@ -20,12 +20,17 @@ class Player:
 
     def update_army(self, army):
         self.armies[army.name] = army
-        
+
     def get_score(self):
         return self.score
     
+    def get_armies(self):
+        return self.armies
+
     def add_score(self, value):
         self.score += value
+
+
 class Army:
     unit_limit = 7
     character_list = []
@@ -56,6 +61,8 @@ class Army:
     def set_symbol(self, path):
         self.symbol = path
     
+
+# limited information    
 class Opponent:
     score = 0
     name = ''
