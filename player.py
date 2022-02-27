@@ -13,6 +13,9 @@ class Player:
         new_army.set_symbol(f'./game_data/{self.color}/{new_army.name}.png') 
         self.armies[new_army.name] = new_army
 
+    def del_army(self, name):
+        self.armies.pop(name)
+
     def split_army(self):
         for army in self.armies:
             if army.must_split():
@@ -52,6 +55,14 @@ class Army:
         if self.get_num_units() < self.unit_limit:
             self.character_list.append(new_character)
 
+    def remove_unit(self, name):
+        index = 0
+        for i, c in enumerate(self.character_list):
+            if c.name == name:
+                index = i
+                break
+        self.character_list.pop(index)
+
     def must_split(self):
         return self.get_num_units() <=  self.unit_limit
     
@@ -62,7 +73,9 @@ class Army:
         self.symbol = path
     
 
-# limited information    
+# limited information 
+# Composite of allowed army information
+# and player information  
 class Opponent:
     score = 0
     name = ''
