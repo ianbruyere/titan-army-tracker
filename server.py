@@ -3,6 +3,10 @@ import socket
 import threading
 from time import sleep
 
+
+# BRAINSTORMING: server will determine how many players are joining
+# maintain turn order, and if needed will save game state when requested
+
 class Server:
     server = None
     HOST_ADDR = "0.0.0.0"
@@ -11,6 +15,7 @@ class Server:
     clients = []
     clients_names = []
     game_started = False
+
 
     def __init__(self, *arg, **args):
         self.window = tk.Tk()

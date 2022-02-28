@@ -10,7 +10,7 @@ class OpponentFrame(tk.Frame):
     def __init__(self, parent, opponent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.parent = parent
-        self.opponent_frame = tk.Frame(self.parent, highlightbackground=opponent.color, highlightthickness=2)
+        self.opponent_frame = tk.Frame(self.parent, highlightbackground=opponent.color, highlightthickness=4)
 
         self.lbl_name = ttk.Label(self.opponent_frame, text=opponent.name, font=BIG_FONT)
         self.lbl_score = ttk.Label(self.opponent_frame, text=opponent.get_score(), font=BIG_FONT, foreground="green")
@@ -26,7 +26,7 @@ class OpponentFrame(tk.Frame):
             new_frame = OpponentArmyFrame(self.armies_frame, symbol, num_units)
             new_frame.pack(side=tk.LEFT)
 
-        self.armies_frame.pack(side=tk.BOTTOM, pady=(5, 10))
+        self.armies_frame.pack(side=tk.BOTTOM, pady=(10, 10))
         self.opponent_frame.pack()
 
 

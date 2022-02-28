@@ -38,8 +38,7 @@ class Army:
     unit_limit = 7
     character_list = []
     symbol = ''
-    name = ''
-
+    
     def __init__(self, name, character_list):
         self.name = name
         self.character_list = character_list

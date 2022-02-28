@@ -58,16 +58,17 @@ class ClientSetupScreen:
         self.root.mainloop()
 
     def change_army_one(self, *args):
-        self.lbl_army_one['image'] = self.images[self.army_select_one.get()]
+        self.lbl_army_one['image'] = self.images[self.army_select_one.get() + ".png"]
 
     def change_army_two(self, *args):
-        self.lbl_army_two['image'] = self.images[self.army_select_two.get()]
+        self.lbl_army_two['image'] = self.images[self.army_select_two.get() + ".png"]
 
     def load_armies(self, *args):
         path = f"./game_data/{self.optionTeam.get()}/"
         file_names = os.listdir(path)
         file_paths = [path + file_name for file_name in file_names]
         self.images = dict(zip(file_names, [tk.PhotoImage(file=file_path) for file_path in file_paths]))
+        file_names = [file_name.split(".")[0] for file_name in file_names]
         # setting up first army select
         self.dd_army_one = tk.OptionMenu(self.army_one_frame, self.army_select_one, *file_names)
         self.dd_army_one.pack(side=tk.LEFT)

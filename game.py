@@ -6,6 +6,7 @@ from game_data.character_data import Characters
 import socket
 import threading
 import os
+import math
 import tkinter as tk
 import tkinter.ttk as ttk
 
@@ -38,117 +39,100 @@ test_player.add_army("g_fish", list_characters_one)
 test_player.add_army("g_snake", list_characters_four)
 test_player.add_score(747)
 
+test_opponents = {"John" : test_opponent_one, "Cash": test_opponent_two}
 ############## END TESTING DATA ######################
 
 
-class MainClient(tk.Frame):
-    opponents = {"John" : test_opponent_one, "Cash": test_opponent_two} # opponent name : opponent data
-    #player = test_player
-    my_turn = False
+class PlayerClient(tk.Frame):
+    opponents =  test_opponents # opponent name : opponent data
+    my_turn = True # TODO for DEBUGGING ONLY
     turn_number = -1
     army_frames = {}
+    opponent_frames = []
 
     def __init__(self, parent, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
-
         self.root = parent
         self.root.title("Titan Main Client")
         self.player = test_player
-        self.make_board()
 
-    def get_player(self):
-        return self.player
-
-    # tk thing that will make based off how many players it recieves
-    def make_board(self):
-        self.make_opponents()
         self.init_player()
+        self.make_opponents()
 
     # will create an opponent object with provided info and tie it into the board
     def make_opponents(self):
+        self.opponent_frame = tk.Frame(self.root)
+        self.opponent_update_trigger = tk.StringVar()
+        self.opponent_update_trigger.trace('w', self.update_opponents)
         for opponent in self.opponents.values():
-            opponent_frame = OpponentFrame(self.root, opponent)
+            opponent_frame = OpponentFrame(self.opponent_frame, opponent)
             opponent_frame.pack()
+        self.opponent_frame.pack()
 
     # will make the player object to keep track of main users
     # army info and allow managing of armies wehn turn
     def init_player(self):
-        self.player_frame = tk.Frame(self.root)
+        self.player_frame = tk.Frame(self.root, highlightbackground=self.player.color, highlightthickness=4)
         
-        self.lbl_name = ttk.Label(self.player_frame, text = self.player.name, font=BIG_FONT)
-        self.lbl_score = ttk.Label(self.player_frame, text = self.player.score, font=BIG_FONT, foreground="green")
+        self.player_scoreboard = tk.Frame(self.player_frame)
+        self.lbl_name = ttk.Label(self.player_scoreboard, text = self.player.name, font=BIG_FONT)
+        self.lbl_score = ttk.Label(self.player_scoreboard, text = self.player.score, font=BIG_FONT, foreground="green")
         self.lbl_name.pack(side=tk.LEFT)
         self.lbl_score.pack(side=tk.LEFT)
-        
-        for army in self.get_player().get_armies().values():
-            new_frame = PlayerOverview(self, army, self.get_player())
+        self.player_scoreboard.pack(side=tk.LEFT)
+
+
+        self.army_frame = tk.Frame(self.player_frame)
+        for army in self.player.get_armies().values():
+            new_frame = PlayerArmyOverview(self, army)
             self.army_frames[army.name] = new_frame
             new_frame.pack()
             
-        self.army_tracker = tk.StringVar()
-        self.army_tracker.set(self.army_frames)
-        self.army_tracker.trace('w', self.update_army_frames)
-        self.player_frame.pack(side=tk.LEFT)
+        self.army_overview_trigger = tk.StringVar()
+        self.army_overview_trigger.trace('w', self.update_army_overview)
+        self.army_frame.pack(side=tk.LEFT)
+        self.player_frame.pack()
+        
+    def update_opponents(self, *args):
+        self.opponent_frame.destroy()
+        self.make_opponents()
 
-    def update_army_frames(self):
-        for army_frame in self.army_frames:
-            army_frame.update()
-    # need to determine armies that need to be split
-    # remove previously mustered units from data
-    # client thing, wont be needed every time
-    def upkeep(self):
-        pass
-
-    # go through each army and get additions if applicable
-    # will need skip option if person decides not to muster, move etc.
-    # client menu thing
-    def muster(self):
-        pass
-
-    # for the purposes of this tracker
-    # can denote battles occurring so fallout can be determined
-    # ie points allocated units lost
-    def battle(self):
-        pass
-
-    # triggered by button press
-    # will broadcast mustered units into army on previous turn until 
-    def end_turn(self):
-        pass
-
-    def turn(self):
-        self.upkeep()
-        self.muster()
-        self.battle()
-        self.end_turn()   
-
-    
-    
+    def update_army_overview(self, *args):
+        # destroying
+        for a_frame in self.army_frames.values():
+            a_frame.destroy_myself()
+        # self.army_frame.destroy()
+        # self.army_frames = {}
+        # rebuilding
+        self.army_frame = tk.Frame(self.root)
+        for army in self.player.get_armies().values():
+            new_frame = PlayerArmyOverview(self, army)
+            self.army_frames[army.name] = new_frame
+            new_frame.pack()
+        self.army_frame.pack(side=tk.LEFT)
 
 
 # contains information about player armies, score
-class PlayerOverview(tk.Frame):
-    image = ''
-    army = None
-    my_turn = False
-    def __init__(self, parent, army, player, *args, **kwargs):
+class PlayerArmyOverview(tk.Frame):
+
+    def __init__(self, parent, army, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.image = tk.PhotoImage(file=army.symbol)
         self.army = army
-        self.parent = parent
-        self.army_frame = tk.Frame(self.parent)
+        self.main_client = parent
 
-        self.army_value = tk.StringVar()
-        self.army_num = tk.StringVar()
-        self.army_value.set(str(army.get_value()))
-        self.army_num.set(str(army.get_num_units()))
-        self.army_num.trace("w", self.update_lbls)
-        self.army_value.trace("w", self.update_lbls)
-
+        self.army_value_trigger = tk.StringVar()
+        self.army_value_trigger.set(str(army.get_value()))
+        self.army_value_trigger.trace("w", self.update_lbls)
+        self.army_num_trigger = tk.StringVar()
+        self.army_num_trigger.set(str(army.get_num_units()))
+        self.army_num_trigger.trace("w", self.update_lbls)
+        
+        self.army_frame = tk.Frame(self.main_client.army_frame)
         self.lbl_army = ttk.Label(self.army_frame, image=self.image)
-        self.lbl_army.bind("<Button-1>", lambda e : self.open_menu(e, player))
-        self.lbl_units = ttk.Label(self.army_frame, text=self.army_num.get(), font=BIG_FONT)
-        self.lbl_value = ttk.Label(self.army_frame, text=self.army_value.get(), font=BIG_FONT, foreground = "cyan")
+        self.lbl_army.bind("<Button-1>", lambda e : self.open_menu(e))
+        self.lbl_units = ttk.Label(self.army_frame, text=self.army_num_trigger.get(), font=BIG_FONT)
+        self.lbl_value = ttk.Label(self.army_frame, text=self.army_value_trigger.get(), font=BIG_FONT, foreground = "cyan")
 
 
         self.lbl_army.pack()
@@ -156,45 +140,30 @@ class PlayerOverview(tk.Frame):
         self.lbl_value.pack(side=tk.RIGHT)
         self.army_frame.pack(side=tk.LEFT)
 
-    def open_menu(self, event, player):
-        PlayerArmyBaseMenu(self, self.army, player)
+    def open_menu(self, event):
+        PlayerArmyBaseMenu(self, self.army)
 
-    def update_frames(self):
-        pass
     def update_lbls(self, *args):
         self.lbl_units['text'] = self.army.get_num_units()
         self.lbl_value['text'] = self.army.get_value()
-        # for army_frame in self.parent.army_frames:
-        #     if not int(army_frame.army.get_num_units()):
-        #         self.parent.army_frames[army_frame.name].pop()
-        #         break
+    
+    def destroy_myself(self):
+        self.pack_forget()
+        self.destroy()
 
 
-# TODO
-# refactor into:
-# Base State
-# muster state
-# upkeep(split) state
-# resolve conflict state
-# so there can be a forced flow for turn
-# and a clear delineation when it's your turn vs someone elses
-# but this works for first pass
+
 class PlayerArmyBaseMenu(tk.Toplevel):
-    image = ''
-    army = None
-    player = None
-    symbol = ''
-    c_frames = []
     btn_frames = []
 
-    def __init__(self, parent, army, player, *args, **kwargs):
+    def __init__(self, parent, army, *args, **kwargs):
+        tk.Toplevel.__init__(self)
         self.c_frames = []
         self.image = tk.PhotoImage(file=army.symbol)
         self.army = army
-        self.player = player
-        tk.Toplevel.__init__(self)
         self.title(army.name)
-        self.parent = parent
+        self.army_overview = parent
+
         # army info
         self.army_frame = tk.Frame(self)
         self.lbl_current_army = ttk.Label(self.army_frame, text = "Current Army")
@@ -204,110 +173,225 @@ class PlayerArmyBaseMenu(tk.Toplevel):
         self.lbl_current_army.pack()
         self.lbl_current_army_image.pack()
         self.lbl_current_army_value.pack()
-
+        self.army_frame.pack()
+        # unit frame
         self.unit_frame = tk.Frame(self)
-        for c in army.character_list:
+        self.update_unit_frame_trigger = tk.StringVar(self.unit_frame)
+        self.update_unit_frame_trigger.trace('w', self.update_unit_frame)
+
+        for c in self.army.character_list:
             c_frame = CharacterMenuItem(self.unit_frame, c.name)
             c_frame.pack()
             self.c_frames.append(c_frame)
 
-        self.btn_frame = tk.Frame(self)
-        # Buttons
-        self.turn_btn = tk.Button(self.btn_frame, text="Turn Start", command=lambda : self.start_turn(parent))
-        self.turn_btn.pack()
-        self.rmv_btn = tk.Button(self.btn_frame, text="Resolve Battle", command=lambda : self.resolve_battle())
-        self.rmv_btn.pack()
-
-        # self.split_button = tk.Button(self.army_frame, text='Split', command=lambda : self.split_army(army))
-        # self.split_button.pack(side=tk.LEFT)
-
-        self.army_frame.pack()
         self.unit_frame.pack()
+        # Buttons
+        self.btn_frame = tk.Frame(self)
+        # self.turn_btn = tk.Button(self.btn_frame, text="Turn Start", command=lambda : self.start_turn())
+        # self.turn_btn.pack()
+        self.split_btn = tk.Button(self.btn_frame, text='Split?', command=lambda : self.split_army())
+        self.split_btn.pack(side=tk.LEFT)
+        self.resolve_btn = tk.Button(self.btn_frame, text="Resolve Battle", command=lambda : self.resolve_battle())
+        self.muster_button = tk.Button(self.btn_frame, text='Muster', command=lambda: self.muster_units())
+        self.muster_button.pack(side=tk.LEFT)
+        self.resolve_btn.pack(side=tk.LEFT)
         self.btn_frame.pack()
     
-    def start_turn(self, parent):
-        if True:
-            self.turn_btn.pack_forget()
-            self.muster_button = tk.Button(self.army_frame, text='Muster', command=lambda: self.muster_units())
-            self.muster_button.pack(side=tk.LEFT)
+    # def start_turn(self):
+        # if self.army_overview.main_client.my_turn:
+            # self.turn_btn.pack_forget()
+            # self.upkeep()
+            # self.muster_button = tk.Button(self.btn_frame, text='Muster', command=lambda: self.muster_units())
+            # self.muster_button.pack(side=tk.LEFT)
+
+    # def upkeep(self):
+    #     if self.army.must_split():
+    #         self.lbl_split_warning = ttk.Label(self.unit_frame, text="You must Split IF you want to muster", foreground="red")
+    #         self.lbl_split_warning.pack()
+    #     self.split_btn = tk.Button(self.btn_frame, text='Split?', command=lambda : self.split_army())
+    #     self.split_btn.pack(side=tk.LEFT)
+    #     self.skip_btn = tk.Button(self.btn_frame, text='Skip', command=lambda : self.skip_split())
+    #     self.skip_btn.pack()
+
+    # def skip_split(self):
+    #     self.split_btn.pack_forget()
+    #     self.skip_btn.pack_forget()
+
 
     def resolve_battle(self):
         ResolveBattleMenu(self)
 
     def muster_units(self):
-        PlayerMusterMenu(self, self.army, self.player)
+        PlayerMusterMenu(self)
+    
+    def split_army(self):
+        SplitArmyMenu(self)
 
+    def update_unit_frame(self, *args):
+        # destroy
+        self.unit_frame.destroy()
+        self.c_frames = []
+        if not len(self.army.character_list):
+            self.destroy()
+            return
+        # rebuild
+        self.unit_frame = tk.Frame(self)
+        # populate
+        for c in self.army.character_list:
+            c_frame = CharacterMenuItem(self.unit_frame, c.name)
+            c_frame.pack()
+            self.c_frames.append(c_frame)
+        # present
+        self.unit_frame.pack()
+
+class SplitArmyMenu(PlayerArmyBaseMenu):
+    def __init__(self, parent, *args, **kwargs):
+        self.base_menu = parent
+        # unpack parent screen stuff
+        self.base_menu.btn_frame.pack_forget()
+
+        # help message
+        self.lbl_splitting = ttk.Label(self.base_menu.army_frame, text='Tick Units To Move', foreground="yellow")
+        self.lbl_splitting.pack()
+        # unhide chk_box
+        for c_frame in self.base_menu.c_frames:
+            c_frame.unhide_chk_box()
+
+        # army selection setup
+        player = self.base_menu.army_overview.main_client.player
+        path = f"./game_data/{player.color}/"
+        file_names = [file_name for file_name in os.listdir(path) if file_name not in player.armies.keys()]
+        file_paths = [path + file_name for file_name in file_names if file_name not in player.armies.keys()]
+        file_names = [file_name.split(".")[0] for file_name in file_names]
+        self.images = dict(zip(file_names, [tk.PhotoImage(file=file_path) for file_path in file_paths]))
+        # setup to hold dd value and trigger image change
+        self.army_selected = tk.StringVar()
+        self.army_selected.trace('w', self.update_image_new_army)
+        # frame for new army
+        self.new_army_frame = tk.Frame(self.base_menu)
+        self.lbl_new_army = ttk.Label(self.new_army_frame, text='New Army Select')
+        self.lbl_new_army.pack()
+        self.lbl_new_army['image'] = list(self.images.values())[0]
+        self.dd_army = tk.OptionMenu(self.new_army_frame, self.army_selected, *file_names)
+        self.dd_army.pack()
+        # save button
+        self.btn_save = tk.Button(self.new_army_frame, text='Save', command= lambda: self.save(player))
+        self.btn_save.pack()
+        self.new_army_frame.pack(side=tk.LEFT)
+
+    def update_image_new_army(self, *args):
+        self.lbl_new_army['image'] = self.images[self.army_selected.get()]
+
+    def save(self, player):
+        # get units moving
+        new_units = [Characters[c_frame.character] for c_frame in self.base_menu.c_frames if c_frame.chk_value.get()]
+        # create new army with units
+        player.add_army(self.army_selected.get(), new_units)
+        # remove units from old army
+        for unit in new_units:
+            self.base_menu.army.remove_unit(unit)
+        # set screen back to base menu state
+        self.btn_save.pack_forget()
+        self.lbl_splitting.pack_forget()
+        self.new_army_frame.destroy()
+        # update screens accordingly
+        self.base_menu.army_overview.army_num_trigger.set(100)
+        self.base_menu.update_unit_frame_trigger.set(200)
+        self.base_menu.army_overview.main_client.army_overview_trigger.set(300)
 
 
 class ResolveBattleMenu(PlayerArmyBaseMenu):
-    army = None
 
     def __init__(self, parent, *args, **kwargs):
+        tk.Frame.__init__(self)
+        self.base_menu = parent
         # unpack parent screen stuff
-        parent.turn_btn.pack_forget()
-        parent.rmv_btn.pack_forget()
-        #self.remove_units_frame = tk.Frame(parent)
-        #state what's going on
-        self.lbl_rmving = ttk.Label(parent.army_frame, text='Tick boxes of Perished Units', foreground="yellow")
+        # self.base_menu.turn_btn.pack_forget()
+        self.base_menu.btn_frame.pack_forget()
+        # state what's going on
+        self.lbl_rmving = ttk.Label(self.base_menu.army_frame, text='Tick Perished Units', foreground="yellow")
         self.lbl_rmving.pack()
-        print(parent.c_frames)
-        for c_frame in parent.c_frames:
-            if c_frame.character == 'Dragon' : next
-            c_frame.update()
+
+        for c_frame in self.base_menu.c_frames:
+            c_frame.unhide_chk_box()
+
         # win/loss checkbox
-        self.chck_value = tk.StringVar()
-        self.chk_box = ttk.Checkbutton(parent.btn_frame, variable=self.chck_value, text="Win? Leave Unticked if lost")
-        self.chk_box.pack()
+        self.win_loss_frame = tk.Frame(self.base_menu)
+        self.chk_loss_value = tk.StringVar()
+        self.chk_loss_box = ttk.Checkbutton(self.win_loss_frame, variable=self.chk_loss_value, text="Lose?")
+        self.chk_loss_box.pack()
+        # surrender
+        self.surrender = tk.StringVar()
+        self.chk_surrender = ttk.Checkbutton(self.win_loss_frame, variable=self.surrender, text="Surrendered?")
+        self.chk_surrender.pack()
+
+        # loss to?
+        self.victor = tk.StringVar()
+        self.lbl_opponents = ttk.Label(self.win_loss_frame, text="Who did you lose to?")
+        self.lbl_opponents.pack(side=tk.LEFT)
+        self.dd_opponents = tk.OptionMenu(self.win_loss_frame, self.victor, *list(self.base_menu.army_overview.main_client.opponents.keys()))
+        self.dd_opponents.pack(side=tk.LEFT)
+
+        self.win_loss_frame.pack()
         # save button
-        self.save_button = tk.Button(parent.btn_frame, text="Save", command=lambda : self.save_resolution(parent))
+        self.btn_frame = tk.Frame(self)
+        self.save_button = tk.Button(self.base_menu, text="Save", command=lambda : self.save_resolution())
         self.save_button.pack()
+        self.btn_frame.pack()
 
-
-    def save_resolution(self, parent):
+    def save_resolution(self):
         # first get rid of stuff
         self.save_button.pack_forget()
-        self.chk_box.pack_forget()
+        # self.chk_box.pack_forget()
         self.lbl_rmving.pack_forget()
-
+        self.btn_frame.pack_forget()
+        self.win_loss_frame.pack_forget()
         removal_index = []
+
+        
+        # if person lost, get points now
+        if self.chk_loss_value.get():
+            opponent = self.base_menu.army_overview.main_client.opponents[self.victor.get()]
+            total_points = self.base_menu.army.get_value()
+            if self.surrender.get():
+                total_points = math.floor(total_points / 2)
+            opponent.add_score(total_points)
+
         # update state and forget
-        for i, c_frame in enumerate(parent.c_frames):
+        for i, c_frame in enumerate(self.base_menu.c_frames):
             if c_frame.chk_value.get():
-                print(f"THIS GUY IS DEAD: {c_frame.character}")
-                parent.army.remove_unit(c_frame.character)
-                if not parent.army.get_num_units():
-                    parent.player.del_army(parent.army.name)
-                    print("ALL DEAD")
+                self.base_menu.army.remove_unit(c_frame.character)
+                # remove army if 0 units
+                if not self.base_menu.army.get_num_units():
+                    self.base_menu.army_overview.main_client.player.del_army(self.base_menu.army.name)
                 removal_index.append(i)
-            parent.parent.army_num.set(100)
             c_frame.chk_box.pack_forget()
-        parent.c_frames = [c_f for c_f in parent.c_frames if not c_frame.chk_value.get()]
+            
+        # update UI
+        self.base_menu.c_frames = [c_f for c_f in self.base_menu.c_frames if not c_frame.chk_value.get()]
+        self.base_menu.update_unit_frame_trigger.set(100)
+        self.base_menu.army_overview.army_num_trigger.set(200)
+        self.base_menu.army_overview.main_client.opponent_update_trigger.set(266)
+        self.base_menu.army_overview.main_client.army_overview_trigger.set(300)
  
 
 
 
 # in-depth information about the players armies
 class PlayerMusterMenu(PlayerArmyBaseMenu):
-    image = ''
-    army = None
-    c_frames = []
 
-    def __init__(self, parent, army, player, *args, **kwargs):
-        self.image = tk.PhotoImage(file=army.symbol)
-        # super().__init__(self, parent, army, player, *args, **kwargs)
-        # Buttons
-        # self.muster_button = tk.Button(self.army_frame, text='Muster', command=lambda: self.muster_unit(army,player, parent))
-        # self.muster_button.pack(side=tk.LEFT)
-        # self.army_frame.pack(side=tk.LEFT)
-        self.muster_frame = tk.Frame(parent)
-        # self.split_button.pack_forget()
-        parent.muster_button.pack_forget()
-        parent.rmv_btn.pack_forget()
+    def __init__(self, parent, *args, **kwargs):
+        tk.Frame.__init__(self)
+        self.base_menu = parent
+        # take care of stuff on base menu
+        self.base_menu.muster_button.pack_forget()
+        self.base_menu.resolve_btn.pack_forget()
         # makes the stuff
+        self.muster_frame = tk.Frame(self.base_menu)
         self.lbl_mustering = ttk.Label(self.muster_frame, text="You are Mustering", foreground='yellow', font=FONT)
         self.new_unit_select = tk.StringVar(self.muster_frame)
         self.characters = tk.OptionMenu(self.muster_frame, self.new_unit_select, *[c for c in Characters.keys()])
-        self.save_button = tk.Button(self.muster_frame, text="Save", command=lambda : self.save_muster_unit(army, player, parent))
+        self.save_button = tk.Button(self.muster_frame, text="Save", command=lambda : self.save_muster_unit())
         # sub units pack
         self.lbl_mustering.pack()
         self.characters.pack()
@@ -315,41 +399,31 @@ class PlayerMusterMenu(PlayerArmyBaseMenu):
         # main local frame
         self.muster_frame.pack(side=tk.LEFT)
 
-
-
-    def muster_unit(self, army, player, parent):
-        pass
-
-    # TODO doesnt update unit list until refresh
     # save selected unit to army
-    def save_muster_unit(self, army, player, parent):
+    def save_muster_unit(self):
         # update objects
-        if self.new_unit_select.get(): army.add_character(self.new_unit_select.get())
-        player.update_army(army)
+        if self.new_unit_select.get(): self.base_menu.army.add_character(self.new_unit_select.get())
+        self.base_menu.army_overview.main_client.player.update_army(self.base_menu.army)
         # update interface
-        c = CharacterMenuItem(parent.unit_frame, self.new_unit_select.get()).pack()
-        parent.lbl_current_army_value['text'] = army.get_value()
-        self.c_frames.append(c)
+        c = CharacterMenuItem(self.base_menu.unit_frame, self.new_unit_select.get())
+        c.pack()
+        self.base_menu.lbl_current_army_value['text'] = self.base_menu.army.get_value()
+        self.base_menu.c_frames.append(c)
         # return UI to original state
         self.muster_frame.destroy()
-        # self.split_button.pack()
-        # self.muster_button.pack()
-        parent.rmv_btn.pack()
-        parent.parent.army_num.set(100) # this triggers update on army overview, unelegant but it works whoot
-
-    def split_army(self):
-        pass
+        self.base_menu.resolve_btn.pack()
+        self.base_menu.army_overview.army_value_trigger.set(100)
 
 
     
 # to display information about characters in an army
 class CharacterMenuItem(tk.Frame):
-    character = None
+
     def __init__(self, parent, character, *args, **kwargs):
         tk.Frame.__init__(self, parent, *args, **kwargs)
         self.character = character
-        self.parent = parent
-        self.character_frame = tk.Frame(self.parent)
+        self.base_menu = parent
+        self.character_frame = tk.Frame(self.base_menu)
 
         self.lbl_character = ttk.Label(self.character_frame, text=character)
         self.chk_value = tk.StringVar()
@@ -357,11 +431,11 @@ class CharacterMenuItem(tk.Frame):
         self.lbl_character.pack(side=tk.LEFT)
         self.character_frame.pack()
 
-    def update(self):
+    def unhide_chk_box(self):
         self.chk_box.pack(side=tk.LEFT)
 
 if __name__ == '__main__':
     root = tk.Tk()
-    MainClient(root).pack(side="top", fill="both", expand=True)
+    PlayerClient(root).pack(side="top", fill="both", expand=True)
     root.mainloop()
 
