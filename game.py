@@ -213,7 +213,25 @@ class PlayerArmyBaseMenu(tk.Toplevel):
         self.resolve_btn.pack(side=tk.LEFT)
         self.btn_frame.pack()
     
+    # def start_turn(self):
+        # if self.army_overview.client.my_turn:
+            # self.turn_btn.pack_forget()
+            # self.upkeep()
+            # self.muster_button = tk.Button(self.btn_frame, text='Muster', command=lambda: self.muster_units())
+            # self.muster_button.pack(side=tk.LEFT)
 
+    # def upkeep(self):
+    #     if self.army.must_split():
+    #         self.lbl_split_warning = ttk.Label(self.unit_frame, text="You must Split IF you want to muster", foreground="red")
+    #         self.lbl_split_warning.pack()
+    #     self.split_btn = tk.Button(self.btn_frame, text='Split?', command=lambda : self.split_army())
+    #     self.split_btn.pack(side=tk.LEFT)
+    #     self.skip_btn = tk.Button(self.btn_frame, text='Skip', command=lambda : self.skip_split())
+    #     self.skip_btn.pack()
+
+    # def skip_split(self):
+    #     self.split_btn.pack_forget()
+    #     self.skip_btn.pack_forget()
 
 
     def resolve_battle(self):
