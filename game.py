@@ -1,4 +1,5 @@
 from faulthandler import disable
+from re import L
 from typing import overload
 from player import *
 from opponent import *
@@ -15,11 +16,13 @@ FONT = ("Times New Roman", 16)
 
 ######## TESTING DATA ############
 test_character_one = Characters["Dragon"]
+test_character_seven = Characters["Dragon"]
 test_character_two = Characters["Serpent"]
 test_character_three = Characters["Titan"]
 test_character_four = Characters["Angel"]
 
 list_characters_one = [test_character_one]
+list_characters_seven = [test_character_seven]
 list_characters_two = [test_character_one, test_character_two, test_character_three]
 list_characters_three = [test_character_one, test_character_two, test_character_three]
 list_characters_four = [test_character_one, test_character_two, test_character_three, test_character_four]
@@ -35,7 +38,7 @@ test_opponent_two.add_army("eye", list_characters_four)
 # print(f"test opponent two: {test_opponent_two.armies}")
 
 test_player = Player("Ian", "Green")
-test_player.add_army("g_fish", list_characters_one)
+test_player.add_army("g_fish", list_characters_seven)
 test_player.add_army("g_snake", list_characters_four)
 test_player.add_score(747)
 
@@ -99,27 +102,30 @@ class PlayerClient(tk.Frame):
 
     def update_army_overview(self, *args):
         # destroying
+        removal = []
+        # get rid of army display if it has no units
         for a_frame in self.army_frames.values():
-            a_frame.destroy_myself()
-        # self.army_frame.destroy()
-        # self.army_frames = {}
-        # rebuilding
-        self.army_frame = tk.Frame(self.root)
+            if not a_frame.army.get_num_units():
+                removal.append(a_frame.army.name)
+                a_frame.destroy_myself()
+        # remove from the army frames
+        self.army_frames = {k:v for k,v in self.army_frames.items() if k not in removal}
+        # create new army frames in result of army creation
         for army in self.player.get_armies().values():
-            new_frame = PlayerArmyOverview(self, army)
-            self.army_frames[army.name] = new_frame
-            new_frame.pack()
-        self.army_frame.pack(side=tk.LEFT)
+            if army.name not in self.army_frames.keys():
+                new_frame = PlayerArmyOverview(self, army)
+                self.army_frames[army.name] = new_frame
+                new_frame.pack()
 
 
 # contains information about player armies, score
 class PlayerArmyOverview(tk.Frame):
 
     def __init__(self, parent, army, *args, **kwargs):
-        tk.Frame.__init__(self, parent, *args, **kwargs)
+        tk.Frame.__init__(self, parent.army_frame, *args, **kwargs)
         self.image = tk.PhotoImage(file=army.symbol)
         self.army = army
-        self.main_client = parent
+        self.client = parent
 
         self.army_value_trigger = tk.StringVar()
         self.army_value_trigger.set(str(army.get_value()))
@@ -128,7 +134,7 @@ class PlayerArmyOverview(tk.Frame):
         self.army_num_trigger.set(str(army.get_num_units()))
         self.army_num_trigger.trace("w", self.update_lbls)
         
-        self.army_frame = tk.Frame(self.main_client.army_frame)
+        self.army_frame = tk.Frame(self)
         self.lbl_army = ttk.Label(self.army_frame, image=self.image)
         self.lbl_army.bind("<Button-1>", lambda e : self.open_menu(e))
         self.lbl_units = ttk.Label(self.army_frame, text=self.army_num_trigger.get(), font=BIG_FONT)
@@ -138,7 +144,8 @@ class PlayerArmyOverview(tk.Frame):
         self.lbl_army.pack()
         self.lbl_units.pack(side=tk.LEFT)
         self.lbl_value.pack(side=tk.RIGHT)
-        self.army_frame.pack(side=tk.LEFT)
+        self.army_frame.pack()
+        self.pack(side=tk.LEFT)
 
     def open_menu(self, event):
         PlayerArmyBaseMenu(self, self.army)
@@ -146,10 +153,19 @@ class PlayerArmyOverview(tk.Frame):
     def update_lbls(self, *args):
         self.lbl_units['text'] = self.army.get_num_units()
         self.lbl_value['text'] = self.army.get_value()
+
     
     def destroy_myself(self):
-        self.pack_forget()
+        for widget in self.winfo_children():
+            print("Destroying Myself")
+            widget.destroy()
         self.destroy()
+
+    def update_frame(self, parent, army):
+        for widget in self.winfo_children():
+            print("Updating Myself")
+            widget.destroy()
+        self.__init__(parent, army)
 
 
 
@@ -198,7 +214,7 @@ class PlayerArmyBaseMenu(tk.Toplevel):
         self.btn_frame.pack()
     
     # def start_turn(self):
-        # if self.army_overview.main_client.my_turn:
+        # if self.army_overview.client.my_turn:
             # self.turn_btn.pack_forget()
             # self.upkeep()
             # self.muster_button = tk.Button(self.btn_frame, text='Muster', command=lambda: self.muster_units())
@@ -244,6 +260,8 @@ class PlayerArmyBaseMenu(tk.Toplevel):
         # present
         self.unit_frame.pack()
 
+
+
 class SplitArmyMenu(PlayerArmyBaseMenu):
     def __init__(self, parent, *args, **kwargs):
         self.base_menu = parent
@@ -258,7 +276,7 @@ class SplitArmyMenu(PlayerArmyBaseMenu):
             c_frame.unhide_chk_box()
 
         # army selection setup
-        player = self.base_menu.army_overview.main_client.player
+        player = self.base_menu.army_overview.client.player
         path = f"./game_data/{player.color}/"
         file_names = [file_name for file_name in os.listdir(path) if file_name not in player.armies.keys()]
         file_paths = [path + file_name for file_name in file_names if file_name not in player.armies.keys()]
@@ -295,9 +313,9 @@ class SplitArmyMenu(PlayerArmyBaseMenu):
         self.lbl_splitting.pack_forget()
         self.new_army_frame.destroy()
         # update screens accordingly
-        self.base_menu.army_overview.army_num_trigger.set(100)
         self.base_menu.update_unit_frame_trigger.set(200)
-        self.base_menu.army_overview.main_client.army_overview_trigger.set(300)
+        self.base_menu.army_overview.client.army_overview_trigger.set(300)
+        self.base_menu.army_overview.army_num_trigger.set(100)
 
 
 class ResolveBattleMenu(PlayerArmyBaseMenu):
@@ -329,7 +347,7 @@ class ResolveBattleMenu(PlayerArmyBaseMenu):
         self.victor = tk.StringVar()
         self.lbl_opponents = ttk.Label(self.win_loss_frame, text="Who did you lose to?")
         self.lbl_opponents.pack(side=tk.LEFT)
-        self.dd_opponents = tk.OptionMenu(self.win_loss_frame, self.victor, *list(self.base_menu.army_overview.main_client.opponents.keys()))
+        self.dd_opponents = tk.OptionMenu(self.win_loss_frame, self.victor, *list(self.base_menu.army_overview.client.opponents.keys()))
         self.dd_opponents.pack(side=tk.LEFT)
 
         self.win_loss_frame.pack()
@@ -351,7 +369,7 @@ class ResolveBattleMenu(PlayerArmyBaseMenu):
         
         # if person lost, get points now
         if self.chk_loss_value.get():
-            opponent = self.base_menu.army_overview.main_client.opponents[self.victor.get()]
+            opponent = self.base_menu.army_overview.client.opponents[self.victor.get()]
             total_points = self.base_menu.army.get_value()
             if self.surrender.get():
                 total_points = math.floor(total_points / 2)
@@ -363,16 +381,17 @@ class ResolveBattleMenu(PlayerArmyBaseMenu):
                 self.base_menu.army.remove_unit(c_frame.character)
                 # remove army if 0 units
                 if not self.base_menu.army.get_num_units():
-                    self.base_menu.army_overview.main_client.player.del_army(self.base_menu.army.name)
+                    self.base_menu.army_overview.client.player.del_army(self.base_menu.army.name)
                 removal_index.append(i)
             c_frame.chk_box.pack_forget()
             
         # update UI
         self.base_menu.c_frames = [c_f for c_f in self.base_menu.c_frames if not c_frame.chk_value.get()]
         self.base_menu.update_unit_frame_trigger.set(100)
+        self.base_menu.army_overview.client.army_overview_trigger.set(300)
         self.base_menu.army_overview.army_num_trigger.set(200)
-        self.base_menu.army_overview.main_client.opponent_update_trigger.set(266)
-        self.base_menu.army_overview.main_client.army_overview_trigger.set(300)
+        self.base_menu.army_overview.client.opponent_update_trigger.set(266)
+        
  
 
 
@@ -403,7 +422,7 @@ class PlayerMusterMenu(PlayerArmyBaseMenu):
     def save_muster_unit(self):
         # update objects
         if self.new_unit_select.get(): self.base_menu.army.add_character(self.new_unit_select.get())
-        self.base_menu.army_overview.main_client.player.update_army(self.base_menu.army)
+        self.base_menu.army_overview.client.player.update_army(self.base_menu.army)
         # update interface
         c = CharacterMenuItem(self.base_menu.unit_frame, self.new_unit_select.get())
         c.pack()
@@ -412,6 +431,7 @@ class PlayerMusterMenu(PlayerArmyBaseMenu):
         # return UI to original state
         self.muster_frame.destroy()
         self.base_menu.resolve_btn.pack()
+        # update overview screen
         self.base_menu.army_overview.army_value_trigger.set(100)
 
 
